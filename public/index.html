@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>趣味井字游戏</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+</head>
+<body>
+    <div class="game-container">
+        <!-- 左侧面板 -->
+        <div class="left-panel">
+            <!-- 玩家列表 -->
+            <div class="players-list">
+                <h3>玩家列表</h3>
+                <div id="playersList" class="players-container">
+                    <!-- 玩家将动态添加到这里 -->
+                </div>
+            </div>
+            
+            <!-- 游戏历史 -->
+            <div class="game-history">
+                <h3>对战历史</h3>
+                <div id="gameHistory" class="history-container">
+                    <!-- 历史记录将动态添加到这里 -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 中央游戏区 -->
+        <div class="main-content">
+            <h1>趣味井字游戏</h1>
+            
+            <!-- 游戏状态区 -->
+            <div class="game-status">
+                <div class="player-status">
+                    <div class="player player-x">
+                        <span class="player-label">玩家 X</span>
+                        <span class="score" id="scoreX">0</span>
+                        <div class="player-indicator" id="playerXIndicator"></div>
+                        <div class="timer" id="timerX">30</div>
+                    </div>
+                    <div class="vs-badge">VS</div>
+                    <div class="player player-o">
+                        <span class="player-label">玩家 O</span>
+                        <span class="score" id="scoreO">0</span>
+                        <div class="player-indicator" id="playerOIndicator"></div>
+                        <div class="timer" id="timerO">30</div>
+                    </div>
+                </div>
+                <div id="statusMessage" class="status-message">等待玩家加入...</div>
+            </div>
+
+            <!-- 游戏板 -->
+            <div class="game-board-container">
+                <div id="gameBoard" class="board">
+                    <div class="cell" data-index="0"></div>
+                    <div class="cell" data-index="1"></div>
+                    <div class="cell" data-index="2"></div>
+                    <div class="cell" data-index="3"></div>
+                    <div class="cell" data-index="4"></div>
+                    <div class="cell" data-index="5"></div>
+                    <div class="cell" data-index="6"></div>
+                    <div class="cell" data-index="7"></div>
+                    <div class="cell" data-index="8"></div>
+                </div>
+                
+                <!-- 游戏控制按钮 -->
+                <div class="controls">
+                    <button id="joinGame" class="btn primary">
+                        <i class="fas fa-play"></i> 加入游戏
+                    </button>
+                    <button id="readyBtn" class="btn secondary" disabled>
+                        <i class="fas fa-check"></i> 准备
+                    </button>
+                    <button id="resetGame" class="btn secondary" disabled>
+                        <i class="fas fa-redo"></i> 重新开始
+                    </button>
+                    <button id="soundToggle" class="btn icon-btn">
+                        <i class="fas fa-volume-up"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右侧聊天面板 -->
+        <div class="right-panel">
+            <div class="chat-container">
+                <h3>聊天室</h3>
+                <div id="chatMessages" class="chat-messages">
+                    <!-- 消息将动态添加到这里 -->
+                </div>
+                <div class="chat-input">
+                    <input type="text" id="messageInput" placeholder="输入消息...">
+                    <button id="sendMessage" class="btn primary">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- 表情选择器 -->
+            <div class="emoji-picker">
+                <button class="emoji" data-emoji="👍">👍</button>
+                <button class="emoji" data-emoji="👋">👋</button>
+                <button class="emoji" data-emoji="😊">😊</button>
+                <button class="emoji" data-emoji="🎮">🎮</button>
+                <button class="emoji" data-emoji="🏆">🏆</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 音效资源 -->
+    <audio id="moveSound" src="sounds/move.mp3" preload="auto"></audio>
+    <audio id="winSound" src="sounds/win.mp3" preload="auto"></audio>
+    <audio id="drawSound" src="sounds/draw.mp3" preload="auto"></audio>
+    <audio id="messageSound" src="sounds/message.mp3" preload="auto"></audio>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="game.js"></script>
+</body>
+</html> 
