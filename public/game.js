@@ -6,6 +6,11 @@ const statusMessage = document.getElementById('statusMessage');
 const scoreX = document.getElementById('scoreX');
 const scoreO = document.getElementById('scoreO');
 
+// 聊天相关元素
+const chatMessages = document.getElementById('chatMessages');
+const messageInput = document.getElementById('messageInput');
+const sendMessageBtn = document.getElementById('sendMessage');
+
 let roomId = 'game1';
 let playerSymbol = null;
 let gameOver = false;
@@ -110,4 +115,55 @@ socket.on('connect', () => {
 socket.on('disconnect', () => {
     console.log('断开连接');
     updateStatus('与服务器断开连接');
+});
+
+// 发送消息函数
+function sendMessage() {
+    const message = messageInput.value.trim();
+    if (message) {
+        socket.emit('chatMessage', {
+            roomId: roomId,
+            message: message
+        });
+        messageInput.value = '';
+    }
+}
+
+// 添加消息到聊天框
+function addMessage(data) {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'chat-message' + 
+        (data.playerId === socket.id ? ' my-message' : '');
+    
+    const time = document.createElement('span');
+    time.className = 'message-time';
+    time.textContent = data.timestamp;
+
+    const content = document.createElement('div');
+    content.className = 'message-content';
+    content.innerHTML = `
+        <span class="player-symbol ${data.playerSymbol.toLowerCase()}">${data.playerSymbol}</span>
+        <span class="message-text">${data.message}</span>
+    `;
+
+    messageDiv.appendChild(time);
+    messageDiv.appendChild(content);
+    chatMessages.appendChild(messageDiv);
+    
+    // 滚动到最新消息
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+// 绑定发送消息事件
+sendMessageBtn.addEventListener('click', sendMessage);
+
+messageInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+        sendMessage();
+    }
+});
+
+// 接收消息事件
+socket.on('chatMessage', (data) => {
+    addMessage(data);
 }); 

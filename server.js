@@ -118,6 +118,24 @@ io.on('connection', (socket) => {
     socket.on('disconnect', () => {
         console.log('用户断开连接:', socket.id);
     });
+
+    // 添加聊天消息处理
+    socket.on('chatMessage', ({ roomId, message }) => {
+        const game = games[roomId];
+        if (!game) return;
+
+        // 找到发送消息的玩家
+        const player = game.players.find(p => p.id === socket.id);
+        if (!player) return;
+
+        // 广播消息到房间
+        io.to(roomId).emit('chatMessage', {
+            playerId: socket.id,
+            playerSymbol: player.symbol,
+            message: message,
+            timestamp: new Date().toLocaleTimeString()
+        });
+    });
 });
 
 http.listen(3000, () => {
