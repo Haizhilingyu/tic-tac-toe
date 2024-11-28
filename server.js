@@ -26,31 +26,34 @@ function checkWin(board) {
 io.on('connection', (socket) => {
     console.log('用户连接成功:', socket.id);
 
-    socket.on('joinGame', (roomId) => {
-        console.log('玩家加入房间:', socket.id, roomId);
+    socket.on('joinGame', ({ roomId, playerName }) => {
+        console.log('玩家加入房间:', socket.id, playerName, roomId);
         
         if (!games[roomId]) {
             // 创建新游戏
             games[roomId] = {
                 players: [{
                     id: socket.id,
-                    symbol: 'X'
+                    symbol: 'X',
+                    name: playerName
                 }],
                 board: Array(9).fill(''),
                 currentPlayer: 0,
                 scores: {X: 0, O: 0},
-                gameOver: false
+                gameOver: false,
+                history: []
             };
-            socket.emit('playerAssigned', { symbol: 'X' });
-            console.log('玩家1分配为 X:', socket.id);
+            socket.emit('playerAssigned', { symbol: 'X', name: playerName });
+            console.log('玩家1分配为 X:', playerName);
         } else if (games[roomId].players.length < 2) {
             // 第二个玩家加入
             games[roomId].players.push({
                 id: socket.id,
-                symbol: 'O'
+                symbol: 'O',
+                name: playerName
             });
-            socket.emit('playerAssigned', { symbol: 'O' });
-            console.log('玩家2分配为 O:', socket.id);
+            socket.emit('playerAssigned', { symbol: 'O', name: playerName });
+            console.log('玩家2分配为 O:', playerName);
         }
         
         socket.join(roomId);
@@ -79,8 +82,8 @@ io.on('connection', (socket) => {
             return;
         }
 
-        // 确保格子为空且游戏未结束
-        if (!game.board[index] && !game.gameOver) {
+        // 确保格子为空
+        if (!game.board[index]) {
             const symbol = game.players[playerIndex].symbol;
             game.board[index] = symbol;
             console.log('落子成功:', index, symbol);
@@ -88,19 +91,34 @@ io.on('connection', (socket) => {
             // 检查胜利
             const result = checkWin(game.board);
             if (result) {
-                game.gameOver = true;
                 if (result !== 'draw') {
                     game.scores[result]++;
                 }
+                
+                // 添加历史记录
+                game.history.push({
+                    winner: result,
+                    timestamp: new Date().toLocaleTimeString(),
+                    scores: {...game.scores}
+                });
+                
+                // 发送游戏结果
                 io.to(roomId).emit('gameEnd', { 
                     winner: result, 
-                    scores: game.scores 
+                    scores: game.scores,
+                    history: game.history
                 });
-                console.log('游戏结束:', result);
+                
+                // 自动重置游戏板
+                game.board = Array(9).fill('');
+                game.currentPlayer = (result === 'X') ? 0 : 1; // 获胜者先手
+                console.log('游戏结束，自动重置:', result);
+            } else {
+                // 如果游戏未结束，切换玩家
+                game.currentPlayer = (game.currentPlayer + 1) % 2;
             }
             
-            // 切换玩家
-            game.currentPlayer = (game.currentPlayer + 1) % 2;
+            // 发送更新后的游戏状态
             io.to(roomId).emit('gameState', game);
         }
     });
@@ -109,9 +127,8 @@ io.on('connection', (socket) => {
         if (games[roomId]) {
             games[roomId].board = Array(9).fill('');
             games[roomId].currentPlayer = 0;
-            games[roomId].gameOver = false;
             io.to(roomId).emit('gameState', games[roomId]);
-            console.log('游戏重置');
+            console.log('游戏手动重置');
         }
     });
 
@@ -132,6 +149,7 @@ io.on('connection', (socket) => {
         io.to(roomId).emit('chatMessage', {
             playerId: socket.id,
             playerSymbol: player.symbol,
+            playerName: player.name,
             message: message,
             timestamp: new Date().toLocaleTimeString()
         });

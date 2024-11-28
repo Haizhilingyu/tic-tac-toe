@@ -14,6 +14,7 @@ const sendMessageBtn = document.getElementById('sendMessage');
 let roomId = 'game1';
 let playerSymbol = null;
 let gameOver = false;
+let playerName = '';
 
 function updateStatus(message) {
     statusMessage.textContent = message;
@@ -29,11 +30,33 @@ function updateCell(cell, value) {
     }
 }
 
-joinGameBtn.addEventListener('click', () => {
-    socket.emit('joinGame', roomId);
-    joinGameBtn.disabled = true;
-    console.log('发送加入游戏请求');
-});
+// 添加玩家名称输入处理
+function showNameInput() {
+    const nameModal = document.getElementById('nameModal');
+    const nameInput = document.getElementById('nameInput');
+    const submitNameBtn = document.getElementById('submitName');
+    
+    nameModal.style.display = 'flex';
+    
+    submitNameBtn.onclick = () => {
+        const name = nameInput.value.trim();
+        if (name) {
+            playerName = name;
+            nameModal.style.display = 'none';
+            socket.emit('joinGame', { roomId, playerName: name });
+            joinGameBtn.disabled = true;
+        }
+    };
+    
+    nameInput.onkeypress = (e) => {
+        if (e.key === 'Enter') {
+            submitNameBtn.click();
+        }
+    };
+}
+
+// 修改加入游戏按钮事件
+joinGameBtn.addEventListener('click', showNameInput);
 
 resetGameBtn.addEventListener('click', () => {
     socket.emit('resetGame', roomId);
@@ -56,14 +79,20 @@ gameBoard.addEventListener('click', (e) => {
     }
 });
 
+// 修改玩家分配事件处理
 socket.on('playerAssigned', (data) => {
     playerSymbol = data.symbol;
-    updateStatus(`你被分配为玩家 ${playerSymbol}`);
-    console.log('收到玩家分配:', playerSymbol);
+    playerName = data.name;
+    updateStatus(`你被分配为玩家 ${data.symbol}（${data.name}）`);
+    console.log('收到玩家分配:', playerSymbol, playerName);
 });
 
+// 修改游戏状态更新处理
 socket.on('gameState', (game) => {
     console.log('收到游戏状态更新:', game);
+    
+    // 更新玩家列表
+    updatePlayersList(game.players);
     
     const cells = document.getElementsByClassName('cell');
     for (let i = 0; i < cells.length; i++) {
@@ -75,17 +104,65 @@ socket.on('gameState', (game) => {
         scoreO.textContent = game.scores.O;
     }
     
-    const currentPlayerSymbol = game.players[game.currentPlayer]?.symbol;
-    if (currentPlayerSymbol === playerSymbol) {
+    const currentPlayer = game.players[game.currentPlayer];
+    if (currentPlayer?.id === socket.id) {
         updateStatus('轮到你的回合');
     } else {
-        updateStatus('等待对手落子');
+        updateStatus(`等待 ${currentPlayer?.name || '对手'} 落子`);
     }
-    
-    gameOver = game.gameOver;
-    resetGameBtn.disabled = !gameOver;
 });
 
+// 添加更新玩家列表的函数
+function updatePlayersList(players) {
+    const playersList = document.getElementById('playersList');
+    playersList.innerHTML = '';
+    
+    players.forEach(player => {
+        const playerItem = document.createElement('div');
+        playerItem.className = 'player-item';
+        playerItem.innerHTML = `
+            <div class="player-avatar">${player.symbol}</div>
+            <div class="player-info">
+                <div class="player-name">${player.name}</div>
+                <div class="player-symbol">玩家 ${player.symbol}</div>
+            </div>
+        `;
+        playersList.appendChild(playerItem);
+    });
+}
+
+// 添加更新历史记录的函数
+function updateGameHistory(history) {
+    const gameHistory = document.getElementById('gameHistory');
+    gameHistory.innerHTML = ''; // 清空现有历史记录
+    
+    history.forEach(record => {
+        const historyItem = document.createElement('div');
+        historyItem.className = 'history-item';
+        
+        let resultText;
+        if (record.winner === 'draw') {
+            resultText = '平局';
+        } else {
+            resultText = `玩家 ${record.winner} 获胜`;
+        }
+        
+        historyItem.innerHTML = `
+            <div class="history-time">${record.timestamp}</div>
+            <div class="history-result">
+                <span class="history-winner">${resultText}</span>
+                <span class="history-score">X: ${record.scores.X} - O: ${record.scores.O}</span>
+            </div>
+        `;
+        
+        gameHistory.appendChild(historyItem);
+    });
+    
+    // 滚动到最新记录
+    gameHistory.scrollTop = gameHistory.scrollHeight;
+}
+
+// 修改 gameEnd 事件处理
 socket.on('gameEnd', (result) => {
     gameOver = true;
     if (result.winner === 'draw') {
@@ -97,6 +174,11 @@ socket.on('gameEnd', (result) => {
     scoreX.textContent = result.scores.X;
     scoreO.textContent = result.scores.O;
     resetGameBtn.disabled = false;
+    
+    // 更新历史记录
+    if (result.history) {
+        updateGameHistory(result.history);
+    }
     
     console.log('游戏结束:', result);
 });
@@ -119,6 +201,7 @@ socket.on('disconnect', () => {
 
 // 发送消息函数
 function sendMessage() {
+    const messageInput = document.getElementById('messageInput');
     const message = messageInput.value.trim();
     if (message) {
         socket.emit('chatMessage', {
@@ -129,7 +212,7 @@ function sendMessage() {
     }
 }
 
-// 添加消息到聊天框
+// 修改添加消息的函数
 function addMessage(data) {
     const messageDiv = document.createElement('div');
     messageDiv.className = 'chat-message' + 
@@ -142,7 +225,7 @@ function addMessage(data) {
     const content = document.createElement('div');
     content.className = 'message-content';
     content.innerHTML = `
-        <span class="player-symbol ${data.playerSymbol.toLowerCase()}">${data.playerSymbol}</span>
+        <span class="player-symbol ${data.playerSymbol.toLowerCase()}">${data.playerName}</span>
         <span class="message-text">${data.message}</span>
     `;
 
@@ -150,7 +233,6 @@ function addMessage(data) {
     messageDiv.appendChild(content);
     chatMessages.appendChild(messageDiv);
     
-    // 滚动到最新消息
     chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
@@ -166,4 +248,16 @@ messageInput.addEventListener('keypress', (e) => {
 // 接收消息事件
 socket.on('chatMessage', (data) => {
     addMessage(data);
+});
+
+// 在现有代码中添加表情选择器的事件处理
+
+// 添加表情选择器的点击事件处理
+document.querySelectorAll('.emoji').forEach(emojiBtn => {
+    emojiBtn.addEventListener('click', () => {
+        const emoji = emojiBtn.dataset.emoji;
+        const messageInput = document.getElementById('messageInput');
+        messageInput.value += emoji;
+        messageInput.focus();
+    });
 }); 
